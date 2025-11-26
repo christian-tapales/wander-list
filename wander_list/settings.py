@@ -52,7 +52,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'login.apps.LoginConfig',
     'dashboard.apps.DashboardConfig',
-    'budget_alerts',
+    'budget_alerts.apps.BudgetAlertsConfig',
     'expenses.apps.ExpensesConfig',
     'savings_goals.apps.SavingsGoalsConfig',
     'reminders.apps.RemindersConfig',  # Reminders app

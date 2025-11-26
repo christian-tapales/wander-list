@@ -181,22 +181,42 @@ def login_view(request):
                     return redirect('dashboard')
                 except User.DoesNotExist:
                     # User exists in Supabase but not in our PostgreSQL DB
-                    # Create the user in our database
-                    username = email.split('@')[0]  # Default username from email
-                    user = User.objects.create(
-                        username=username,
+                    
+                    # --- FIX START: Fetch the REAL ID from Supabase ---
+                    real_supabase_id = None
+                    try:
+                        # Ask Supabase: "What is the ID for this email?"
+                        supabase_client = get_service_client()
+                        response = supabase_client.table('login_user').select('id').eq('email', email).execute()
+                        
+                        if response.data and len(response.data) > 0:
+                            real_supabase_id = response.data[0]['id']
+                            logger.info(f"Found existing Supabase ID for {email}: {real_supabase_id}")
+                    except Exception as id_error:
+                        logger.error(f"Could not fetch ID from Supabase: {id_error}")
+
+                    # --- Create the local user ---
+                    user = User(
+                        username=email.split('@')[0],
                         email=email,
                         password=password  # Store unhashed password for testing
                     )
                     
+                    # If we found a real ID, FORCE it. Otherwise, let SQLite decide (fallback).
+                    if real_supabase_id:
+                        user.id = real_supabase_id
+                    
+                    user.save()
+                    # --- FIX END ---
+                    
                     request.session['user_id'] = user.id
-                    request.session['username'] = username
+                    request.session['username'] = user.username
                     request.session['email'] = email
                     
                     if access_token:
                         request.session['supabase_access_token'] = access_token
                     
-                    messages.success(request, f"Welcome, {username}!")
+                    messages.success(request, f"Welcome, {user.username}!")
                     return redirect('dashboard')
             except Exception as e:
                 logger.error(f"Login failed: {e}")
