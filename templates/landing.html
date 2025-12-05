@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>🦸 PisoHeroes</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/landing.css' %}">
+    <script defer src="{% static 'js/landing.js' %}"></script>
+</head>
+<body>
+    <header>
+        <div class="logo">🦸 PisoHeroes</div>
+        <nav>
+            <a href="{% url 'landing' %}">Home</a>
+            <a href="#">About</a>
+            <a href="{% url 'login:login_page' %}">Login</a>
+            <a href="{% url 'login:register_page' %}">Sign Up</a>
+        </nav>
+    </header>
+    <main>
+        <section class="hero">
+            <h1 class="hero-title">
+                🦸 PisoHeroes
+            </h1>
+            <p class="hero-tagline">
+                <strong>Every Peso Counts.</strong> A comprehensive personal finance and budgeting application designed to turn users into heroes of their own financial journey.
+            </p>
+            <div class="cta-buttons">
+                <a href="{% url 'login:register_page' %}" class="btn primary">Get Started</a>
+                <a href="#" class="btn secondary">Learn More</a>
+            </div>
+        </section>
+        <section class="features">
+            <div class="feature-card">
+                <h2>Smart Dashboard</h2>
+                <p>Real-time calculation of daily allowance and visual breakdowns of your spending.</p>
+            </div>
+            <div class="feature-card">
+                <h2>Expense Tracking</h2>
+                <p>Log expenses by category and view your spending history and trends.</p>
+            </div>
+            <div class="feature-card">
+                <h2>Savings Goals</h2>
+                <p>Create custom savings targets and track your progress visually.</p>
+            </div>
+        </section>
+    </main>
+    <footer>
+        <p>&copy; 2024 PisoHeroes. All rights reserved.</p>
+    </footer>
+</body>
+</html>
