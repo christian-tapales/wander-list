@@ -1,52 +1,78 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>🦸 PisoHeroes</title>
+
     {% load static %}
-    <link rel="stylesheet" href="{% static 'css/landing.css' %}">
+    <link rel="stylesheet" href="{% static 'css/landing.css' %}" />
     <script defer src="{% static 'js/landing.js' %}"></script>
 </head>
+
 <body>
-    <header>
+    <!-- NAVBAR -->
+    <header class="navbar">
         <div class="logo">🦸 PisoHeroes</div>
-        <nav>
+
+        <nav class="nav-links">
             <a href="{% url 'landing' %}">Home</a>
             <a href="#">About</a>
             <a href="{% url 'login:login_page' %}">Login</a>
-            <a href="{% url 'login:register_page' %}">Sign Up</a>
+            <a href="{% url 'login:register_page' %}" class="nav-cta">Sign Up</a>
         </nav>
     </header>
+
     <main>
+        <!-- HERO SECTION -->
         <section class="hero">
-            <h1 class="hero-title">
-                🦸 PisoHeroes
-            </h1>
-            <p class="hero-tagline">
-                <strong>Every Peso Counts.</strong> A comprehensive personal finance and budgeting application designed to turn users into heroes of their own financial journey.
-            </p>
-            <div class="cta-buttons">
-                <a href="{% url 'login:register_page' %}" class="btn primary">Get Started</a>
-                <a href="#" class="btn secondary">Learn More</a>
+            <div class="hero-content">
+                <h1>Become the Hero of Your Finances</h1>
+                <p>
+                    <strong>PisoHeroes</strong> helps students budget, save, and track expenses with ease.  
+                    Turn every peso into power.
+                </p>
+
+                <div class="cta-buttons">
+                    <a href="{% url 'login:register_page' %}" class="btn primary">Get Started</a>
+                    <a href="#" class="btn secondary">Learn More</a>
+                </div>
+            </div>
+
+            <div class="hero-illustration">
+                <img 
+                    src="https://cdn-icons-png.flaticon.com/512/3208/3208759.png" 
+                    alt="Financial illustration showing money management"
+                />
             </div>
         </section>
+
+        <!-- FEATURES -->
         <section class="features">
-            <div class="feature-card">
-                <h2>Smart Dashboard</h2>
-                <p>Real-time calculation of daily allowance and visual breakdowns of your spending.</p>
-            </div>
-            <div class="feature-card">
-                <h2>Expense Tracking</h2>
-                <p>Log expenses by category and view your spending history and trends.</p>
-            </div>
-            <div class="feature-card">
-                <h2>Savings Goals</h2>
-                <p>Create custom savings targets and track your progress visually.</p>
+            <h2 class="section-title">Why PisoHeroes?</h2>
+
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h3>📊 Smart Dashboard</h3>
+                    <p>Instant allowance calculations with intuitive visual charts.</p>
+                </div>
+
+                <div class="feature-card">
+                    <h3>🧾 Expense Tracking</h3>
+                    <p>Track every peso easily using categorized expenses and monthly trends.</p>
+                </div>
+
+                <div class="feature-card">
+                    <h3>🎯 Savings Goals</h3>
+                    <p>Create, adjust, and monitor personalized savings goals.</p>
+                </div>
             </div>
         </section>
     </main>
-    <footer>
-        <p>&copy; 2024 PisoHeroes. All rights reserved.</p>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+        <p>© 2025 PisoHeroes — Every Peso Counts.</p>
     </footer>
 </body>
 </html>

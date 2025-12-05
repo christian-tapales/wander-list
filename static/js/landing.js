@@ -1,20 +1,24 @@
-// Smooth scroll for anchor links
-document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-    anchor.addEventListener('click', function(e) {
-        const target = document.querySelector(this.getAttribute('href'));
-        if (target) {
-            e.preventDefault();
-            target.scrollIntoView({ behavior: 'smooth' });
-        }
-    });
-});
+// landing.js
+document.addEventListener("DOMContentLoaded", () => {
+    const fadeElems = document.querySelectorAll(".feature-card");
 
-// Button hover ripple effect (simple)
-document.querySelectorAll('.btn').forEach(btn => {
-    btn.addEventListener('mouseenter', () => {
-        btn.style.boxShadow = '0 6px 24px rgba(45,108,223,0.15)';
+    fadeElems.forEach(card => {
+        card.style.opacity = 0;
+        card.style.transform = "translateY(20px)";
     });
-    btn.addEventListener('mouseleave', () => {
-        btn.style.boxShadow = '0 2px 8px rgba(45,108,223,0.08)';
-    });
+
+    const revealOnScroll = () => {
+        fadeElems.forEach(card => {
+            const rect = card.getBoundingClientRect();
+
+            if (rect.top < window.innerHeight - 80) {
+                card.style.transition = "0.6s ease";
+                card.style.opacity = 1;
+                card.style.transform = "translateY(0)";
+            }
+        });
+    };
+
+    window.addEventListener("scroll", revealOnScroll);
+    revealOnScroll();
 });
