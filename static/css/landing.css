@@ -132,41 +132,91 @@ img {
 }
 
 /* FEATURES SECTION */
+/* ===== PREMIUM FEATURE CARDS ===== */
+
 .features {
-    padding: 4rem 3rem;
+    padding: 5rem 3rem;
     text-align: center;
 }
 
 .section-title {
-    font-size: 2.2rem;
+    font-size: 2.4rem;
     font-weight: 700;
     color: #2d6cdf;
-    margin-bottom: 3rem;
+    margin-bottom: 3.5rem;
 }
 
 .feature-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: 2rem;
+    gap: 2.5rem;
 }
 
-.feature-card {
-    background: white;
-    padding: 2rem;
-    border-radius: 20px;
-    box-shadow: 0 4px 14px rgba(0,0,0,0.06);
-    transition: transform 0.25s ease, box-shadow 0.25s ease;
+/* Premium Card */
+.premium-card {
+    background: #ffffff;
+    padding: 2.6rem 2rem;
+    border-radius: 22px;
+
+    /* Gradient border + subtle depth */
+    background: linear-gradient(145deg, #ffffff, #f0f4ff);
+    border: 1px solid rgba(45,108,223,0.15);
+
+    box-shadow:
+        0 12px 28px rgba(0, 0, 0, 0.06),
+        0 4px 8px rgba(0, 0, 0, 0.03);
+
+    transition: transform 0.35s ease, box-shadow 0.35s ease, border 0.35s ease;
+    position: relative;
+    overflow: hidden;
 }
 
-.feature-card:hover {
-    transform: translateY(-6px);
-    box-shadow: 0 10px 26px rgba(0,0,0,0.1);
+/* Animated top glow */
+.premium-card::before {
+    content: "";
+    position: absolute;
+    top: -60%;
+    left: -60%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(ellipse, rgba(45,108,223,0.08), transparent 60%);
+    transform: rotate(25deg);
+    transition: opacity 0.4s ease;
+    opacity: 0;
 }
 
-.feature-card h3 {
-    color: #2d6cdf;
-    margin-bottom: 0.7rem;
+.premium-card:hover::before {
+    opacity: 1;
 }
+
+.premium-card:hover {
+    transform: translateY(-12px);
+    box-shadow:
+        0 20px 45px rgba(0,0,0,0.10),
+        0 6px 14px rgba(0,0,0,0.05);
+    border: 1px solid rgba(45,108,223,0.35);
+}
+
+.card-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    filter: drop-shadow(0 4px 10px rgba(0,0,0,0.12));
+}
+
+.premium-card h3 {
+    font-size: 1.35rem;
+    margin-bottom: 0.6rem;
+    font-weight: 700;
+    color: #1f3f8e;
+}
+
+.premium-card p {
+    color: #555;
+    font-size: 1rem;
+    max-width: 260px;
+    margin: 0 auto;
+}
+
 
 /* FOOTER */
 footer {
