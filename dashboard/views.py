@@ -395,59 +395,45 @@ def cache_settings_view(request):
 
 def admin_dashboard_view(request):
     """
-    Displays a list of all registered users.
-    Fetches latest data from Supabase to keep local DB in sync,
-    and supports searching by username or email.
+    Displays a list of all registered users from Supabase (Source of Truth).
     """
     # 1. Security Check
     if not request.session.get('is_admin'):
         return redirect('dashboard')
 
-    # 2. SYNC: Fetch all users from Supabase and update local DB
+    # 2. Fetch EVERYTHING from Supabase
+    # We fetch the actual list so we can show it in the table AND count it.
+    users_data = []
     try:
         supabase = get_service_client()
-        response = supabase.table('login_user').select('*').execute()
-
-        if response.data:
-            for remote_user in response.data:
-                User.objects.update_or_create(
-                    email=remote_user['email'],
-                    defaults={
-                        'username': remote_user.get(
-                            'username',
-                            remote_user['email'].split('@')[0]
-                        ),
-                        'is_admin': remote_user.get('is_admin', False),
-                        'password': remote_user.get(
-                            'password', 'synced_from_supabase'
-                        )
-                    }
-                )
+        # Fetch all users ordered by ID
+        response = supabase.table('login_user').select('*').order('id', desc=True).execute()
+        users_data = response.data if response.data else []
+        
     except Exception as e:
-        logger.error(f"Failed to sync users from Supabase: {e}")
+        logger.error(f"Failed to fetch users from Supabase: {e}")
+        users_data = []
 
-    # 3. SEARCH + STATS
-    search_query = request.GET.get('q', '').strip()
-
-    # base queryset (for table)
-    users_qs = User.objects.all()
-
+    # 3. SEARCH (Python-side filtering)
+    # Since we have the raw list from Supabase, we filter it here.
+    search_query = request.GET.get('q', '').strip().lower()
+    
+    filtered_users = users_data
     if search_query:
-        users_qs = users_qs.filter(
-            Q(username__icontains=search_query) |
-            Q(email__icontains=search_query)
-        )
+        filtered_users = [
+            u for u in users_data 
+            if search_query in (u.get('username') or '').lower() 
+            or search_query in (u.get('email') or '').lower()
+        ]
 
-    users_qs = users_qs.order_by('-id')
-
-    # stats for header cards (based on ALL users, not just filtered)
-    all_users = User.objects.all()
-    total_users = all_users.count()
-    total_admins = all_users.filter(is_admin=True).count()
-    total_regular = all_users.filter(is_admin=False).count()
+    # 4. CALCULATE STATS (From Supabase Data)
+    total_users = len(users_data)
+    total_admins = sum(1 for u in users_data if u.get('is_admin'))
+    total_regular = total_users - total_admins
 
     context = {
-        'users': users_qs,
+        # Pass the Supabase list (dicts), not Django objects
+        'users': filtered_users, 
         'user_count': total_users,
         'admin_count': total_admins,
         'regular_user_count': total_regular,

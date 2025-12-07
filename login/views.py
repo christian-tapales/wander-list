@@ -12,7 +12,13 @@ import traceback
 logger = logging.getLogger(__name__)
 
 def register(request):
-    """Handles user registration using Supabase authentication."""
+    """
+    Simple Registration Flow:
+    1. Create Auth User
+    2. Sync to Supabase DB (Public Profile)
+    3. Sync to Local DB
+    4. Redirect to Login Page
+    """
     # If user is already logged in, redirect to dashboard
     if 'user_id' in request.session:
         return redirect('dashboard')
@@ -25,111 +31,84 @@ def register(request):
             password = form.cleaned_data['password']
 
             try:
-                # First create the user in Supabase auth
+                # ---------------------------------------------------------
+                # STEP 1: Supabase Auth (Create the Account)
+                # ---------------------------------------------------------
+                # Note: Ensure "Confirm Email" is disabled in Supabase Dashboard!
                 signup_response = sign_up(email, password)
-
-                # Log the response for debugging
-                logger.info(f"Supabase signup response: {signup_response}")
-                print(f"DEBUG: Supabase signup response type: {type(signup_response)}")
-                print(f"DEBUG: Supabase signup response: {signup_response}")
-
-                # Extract access_token and user from response
-                access_token = None
+                
+                # Verify we got a user back
                 user_data = None
-
-                # Handle AuthResponse object (from supabase_auth package)
                 if hasattr(signup_response, 'user'):
                     user_data = signup_response.user
-                if hasattr(signup_response, 'session'):
-                    # Session might be None if email confirmation is required
-                    if signup_response.session and hasattr(signup_response.session, 'access_token'):
-                        access_token = signup_response.session.access_token
+                elif isinstance(signup_response, dict):
+                    user_data = signup_response.get('user')
 
-                # Fallback for dict response (older client versions)
-                if isinstance(signup_response, dict):
-                    session_data = signup_response.get('session', {})
-                    user_data = user_data or signup_response.get('user', {})
-                    if isinstance(session_data, dict):
-                        access_token = access_token or session_data.get('access_token')
-
-                # Check if user was actually created
                 if not user_data:
-                    raise ValueError("User registration failed: No user data returned from Supabase")
+                    raise ValueError("Registration failed: Supabase returned no user data.")
 
-                # If session is None, email confirmation is likely required
-                if not access_token and hasattr(signup_response, 'session') and signup_response.session is None:
-                    messages.warning(request, "⚠️ Please check your email to confirm your account before logging in.")
-                    # Still create the local user but don't log them in
-                    user, created = User.objects.get_or_create(
-                        email=email,
-                        defaults={
-                            'username': username,
-                        }
-                    )
-                    if created:
-                        user.set_password(password)  # Hash the password
-                        user.save()
-                    return render(request, 'login/register.html', {'form': form})
-
-                # Store user in local SQLite with hashed password
+                # ---------------------------------------------------------
+                # STEP 2: Prepare Local User (Get ID)
+                # ---------------------------------------------------------
                 user, created = User.objects.get_or_create(
                     email=email,
-                    defaults={
-                        'username': username,
-                    }
+                    defaults={'username': username}
                 )
 
                 if created:
-                    user.set_password(password)  # Hash the password on creation
+                    user.set_password(password)
                     user.save()
-                    # Log user creation
                     log_create(str(user.id), 'user', user.id, {'username': username, 'email': email}, request)
                 else:
-                    # User already exists, update username and hash password
                     user.username = username
-                    user.set_password(password)  # Hash the updated password
+                    user.set_password(password)
                     user.save()
 
-                # ALSO insert into Supabase PostgreSQL using REST API
-                # Note: Supabase handles its own password hashing in Auth
+                # ---------------------------------------------------------
+                # STEP 3: Sync to Supabase Public Table (CRITICAL)
+                # ---------------------------------------------------------
+                # We always do this immediately. No checks, no delays.
                 try:
                     supabase_client = get_service_client()
                     supabase_client.table('login_user').upsert({
                         'id': user.id,
                         'username': username,
                         'email': email,
-                        # Don't store password in Supabase table - it's in Supabase Auth
+                        'password': 'auth_handled_by_supabase_securely' # Placeholder
                     }).execute()
-                    logger.info(f"User {email} saved to Supabase PostgreSQL")
+                    
+                    logger.info(f"User {email} synced to Supabase DB successfully.")
+                    
                 except Exception as db_error:
-                    logger.error(f"Failed to save to Supabase PostgreSQL: {db_error}")
-                    # Continue anyway - user is in SQLite and Supabase Auth
+                    # CRITICAL ROLLBACK
+                    logger.error(f"Supabase Sync Failed: {db_error}")
+                    if created:
+                        user.delete() # Delete local user so we don't have a ghost
+                    
+                    messages.error(request, "⚠️ Registration failed: Database sync error. Please try again.")
+                    return render(request, 'login/register.html', {'form': form})
 
-                # Store authentication info in session
-                request.session['user_id'] = user.id
-                request.session['username'] = username
-                request.session['email'] = email
+                # ---------------------------------------------------------
+                # STEP 4: Success! Redirect to Login
+                # ---------------------------------------------------------
+                # We don't auto-login. We send them to the login page as requested.
+                messages.success(request, "🎉 Account created successfully! Please log in.")
+                return redirect('login:login_page')
 
-                if access_token:
-                    request.session['supabase_access_token'] = access_token
-
-                messages.success(request, "🎉 Registration successful. Welcome aboard!")
-                return redirect('dashboard')
             except Exception as e:
-                logger.error(f"Registration failed: {e}")
-                print(f"DEBUG: Registration error: {e}")
-                import traceback
-                traceback.print_exc()
+                logger.error(f"Registration Error: {e}")
+                # Fallback cleanup
+                try:
+                    User.objects.filter(email=email).delete()
+                except:
+                    pass
                 messages.error(request, f"⚠️ Registration failed: {str(e)}")
-                # Don't redirect on error - stay on registration page
         else:
-            # Log detailed errors to console
-            logger.error("Form validation failed: %s", form.errors.as_json())
-            messages.error(request, "⚠️ Registration failed. Please check the form for errors.")
+            messages.error(request, "⚠️ Please check the form for errors.")
     else:
         form = RegistrationForm()
+    
     return render(request, 'login/register.html', {'form': form})
-
 
 def login_view(request):
     """Handles user login with enhanced debugging and error tracing."""
