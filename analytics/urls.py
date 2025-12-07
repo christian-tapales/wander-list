@@ -16,4 +16,5 @@ urlpatterns = [
     path('api/weekly-comparison/', views.api_weekly_comparison, name='api_weekly_comparison'),
     path('api/monthly-trends/', views.api_monthly_trends, name='api_monthly_trends'),
     path('api/hourly-patterns/', views.api_hourly_patterns, name='api_hourly_patterns'),
+    path('export-csv/', views.export_visual_report_csv, name='user_csv_export'),
 ]
