@@ -40,6 +40,16 @@ DEBUG = os.getenv("DEBUG", "False").lower() in ("true", "1", "t")
 
 ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'pisoheroes.onrender.com']
 
+# --- ADD THIS BLOCK FOR RENDER DEPLOYMENT ---
+# Fixes "Login Loop" by telling Django to trust HTTPS from Render
+if not DEBUG:
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+
+    CSRF_COOKIE_SECURE = True
+# --------------------------------------------
+
 
 # Application definition
 

@@ -74,7 +74,8 @@ def register(request):
                         'id': user.id,
                         'username': username,
                         'email': email,
-                        'password': 'auth_handled_by_supabase_securely' # Placeholder
+                        'password': 'auth_handled_by_supabase_securely', # Placeholder
+                        'is_admin': False
                     }).execute()
                     
                     logger.info(f"User {email} synced to Supabase DB successfully.")
