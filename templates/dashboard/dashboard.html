@@ -1,5 +1,7 @@
 {% extends 'base.html' %}
 
+{% load static %}
+
 {% block title %}PisoHeroes | Home Dashboard{% endblock %}
 
 {% block content %}
@@ -184,11 +186,14 @@
                     <a href="{% url 'expenses' %}" class="btn btn-success btn-lg mb-2">
                         <i class="fas fa-plus me-2"></i> Log Expense
                     </a>
-                    <a href="{% url 'savings_goals:goals' %}" class="btn btn-outline-secondary btn-lg mb-2">
+                    <a href="{% url 'savings_goals:goals' %}" class="btn btn-outline-primary btn-lg mb-2">
                         <i class="fas fa-piggy-bank me-2"></i> Add Savings Goal
                     </a>
                     <a href="{% url 'budget_alerts:alerts_page' %}" class="btn btn-outline-info btn-lg">
                         <i class="fas fa-bell me-2"></i> Manage Budgets
+                    </a>
+                    <a href="{% static 'docs/guide.pdf' %}" class="btn btn-success btn-lg" download>
+                        <i class="fas fa-file-download me-2"></i> User Guide
                     </a>
                 </div>
             </div>
