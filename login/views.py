@@ -60,7 +60,7 @@ def register(request):
                         'is_admin': False
                     }
                     # .select() asks Supabase to return the new ID
-                    insert_res = supabase.table('login_user').insert(data_payload).select().execute()
+                    insert_res = supabase.table('login_user').insert(data_payload).execute()
                     
                     if not insert_res.data:
                         raise ValueError("Database insert failed: No data returned.")
