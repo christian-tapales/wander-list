@@ -1,4 +1,3 @@
-# dashboard/views.py
 from django.shortcuts import render, redirect
 from django.db.models import Sum, Q
 from django.utils import timezone
@@ -71,6 +70,11 @@ def dashboard_view(request):
         # Calculate date ranges
         start_of_month = today.replace(day=1).isoformat()
         start_of_week = (today - timedelta(days=today.weekday())).isoformat()
+
+        # Range selector for Budget Usage chart
+        budget_range = request.GET.get('budget_range', 'monthly')
+        if budget_range not in ['daily', 'weekly', 'monthly']:
+            budget_range = 'monthly'
         
         # ===== DAILY ALLOWANCE SECTION (MODIFIED) =====
         # Label: START_DAILY_ALLOWANCE
@@ -139,22 +143,36 @@ def dashboard_view(request):
         try:
             category_spending = []
             
-            # Get all month expenses from Supabase
-            month_expenses_data = supabase.table('expenses')\
-                .select('category, amount')\
-                .eq('user_id', user_id)\
-                .gte('date', start_of_month)\
-                .execute()
+            # Pick date range for the chart based on budget_range
+            if budget_range == 'daily':
+                range_query = supabase.table('expenses')\
+                    .select('category, amount')\
+                    .eq('user_id', user_id)\
+                    .eq('date', today_str)
+            elif budget_range == 'weekly':
+                range_query = supabase.table('expenses')\
+                    .select('category, amount')\
+                    .eq('user_id', user_id)\
+                    .gte('date', start_of_week)\
+                    .lte('date', today_str)
+            else:  # monthly (default)
+                range_query = supabase.table('expenses')\
+                    .select('category, amount')\
+                    .eq('user_id', user_id)\
+                    .gte('date', start_of_month)\
+                    .lte('date', today_str)
+
+            range_expenses_data = range_query.execute()
             
-            # Calculate spending per category
-            category_totals = {}
-            if month_expenses_data.data:
-                for expense in month_expenses_data.data:
+            # Calculate spending per category for the chart
+            category_totals_chart = {}
+            if range_expenses_data.data:
+                for expense in range_expenses_data.data:
                     cat = expense.get('category', 'Other')
                     amount = Decimal(str(expense.get('amount', 0)))
-                    category_totals[cat] = category_totals.get(cat, Decimal('0.00')) + amount
+                    category_totals_chart[cat] = category_totals_chart.get(cat, Decimal('0.00')) + amount
             
-            # Get budget alerts from Supabase
+            # Get budget alerts from Supabase (for budget limits)
             budget_alerts_data = supabase.table('budget_alerts')\
                 .select('category, amount_limit')\
                 .eq('user_id', user_id)\
@@ -166,9 +184,9 @@ def dashboard_view(request):
                 for alert in budget_alerts_data.data:
                     budget_limits[alert['category']] = Decimal(str(alert['amount_limit']))
             
-            # Build category spending list
+            # Build category spending list for the pie chart
             for category in CATEGORIES[:5]:  # Top 5 categories
-                spent = category_totals.get(category, Decimal('0.00'))
+                spent = category_totals_chart.get(category, Decimal('0.00'))
                 budget_limit = budget_limits.get(category, Decimal('1000.00'))
                 percentage = min((spent / budget_limit * 100) if budget_limit > 0 else 0, 100)
                 
@@ -229,6 +247,21 @@ def dashboard_view(request):
         try:
             triggered_alerts = []
             
+            # Month-to-date spending per category for alerts (always monthly)
+            month_expenses_for_alerts = supabase.table('expenses')\
+                .select('category, amount')\
+                .eq('user_id', user_id)\
+                .gte('date', start_of_month)\
+                .lte('date', today_str)\
+                .execute()
+
+            category_totals_month = {}
+            if month_expenses_for_alerts.data:
+                for exp in month_expenses_for_alerts.data:
+                    cat = exp.get('category', 'Other')
+                    amount = Decimal(str(exp.get('amount', 0)))
+                    category_totals_month[cat] = category_totals_month.get(cat, Decimal('0.00')) + amount
+            
             # Get active budget alerts from Supabase
             alerts_result = supabase.table('budget_alerts')\
                 .select('*')\
@@ -243,7 +276,7 @@ def dashboard_view(request):
                 
                 for alert in alerts_result.data:
                     category = alert['category']
-                    spent = category_totals.get(category, Decimal('0.00'))
+                    spent = category_totals_month.get(category, Decimal('0.00'))
                     limit = Decimal(str(alert['amount_limit']))
                     threshold_percent = alert['threshold_percent']
                     threshold_amount = limit * (Decimal(threshold_percent) / 100)
@@ -284,10 +317,10 @@ def dashboard_view(request):
         try:
             notifications_result = supabase.table('reminders') \
                 .select('*') \
-                .eq('user_id', user_id) \
-                .eq('is_completed', False) \
-                .order('due_at', desc=False) \
-                .limit(10) \
+                .eq('user_id', user_id)\
+                .eq('is_completed', False)\
+                .order('due_at', desc=False)\
+                .limit(10)\
                 .execute()
 
             notifications = notifications_result.data if notifications_result.data else []
@@ -301,6 +334,13 @@ def dashboard_view(request):
         except Exception as e:
             logger.error(f"Error fetching notifications for user {user_id}: {e}", exc_info=True)
             notifications = []
+
+        if budget_range == 'daily':
+            budget_range_label = 'day'
+        elif budget_range == 'weekly':
+            budget_range_label = 'week'
+        else:
+            budget_range_label = 'month'
 
         context = {
             'username': username,
@@ -316,6 +356,8 @@ def dashboard_view(request):
             'month_expenses': month_expenses,
             # Budget usage
             'category_spending': category_spending,
+            'budget_range': budget_range,
+            'budget_range_label': budget_range_label,
             # Savings goals
             'active_goals': active_goals,
             'total_savings_target': total_savings_target,
@@ -395,45 +437,99 @@ def cache_settings_view(request):
 
 def admin_dashboard_view(request):
     """
-    Displays a list of all registered users from Supabase (Source of Truth).
+    Displays a list of all registered users.
+    Fetches latest data from Supabase to keep local DB in sync,
+    and supports searching by username or email.
     """
-    # 1. Security Check
     if not request.session.get('is_admin'):
         return redirect('dashboard')
 
-    # 2. Fetch EVERYTHING from Supabase
-    # We fetch the actual list so we can show it in the table AND count it.
-    users_data = []
+    # Supabase client
     try:
         supabase = get_service_client()
-        # Fetch all users ordered by ID
-        response = supabase.table('login_user').select('*').order('id', desc=True).execute()
-        users_data = response.data if response.data else []
-        
     except Exception as e:
-        logger.error(f"Failed to fetch users from Supabase: {e}")
-        users_data = []
+        logger.error(f"Failed to initialize Supabase client: {e}")
+        supabase = None
 
-    # 3. SEARCH (Python-side filtering)
-    # Since we have the raw list from Supabase, we filter it here.
-    search_query = request.GET.get('q', '').strip().lower()
-    
-    filtered_users = users_data
+    email_to_remote_id = {}
+
+    # 2. SYNC: Fetch all users from Supabase and update local DB
+    if supabase:
+        try:
+            response = supabase.table('login_user').select('*').execute()
+
+            if response.data:
+                for remote_user in response.data:
+                    email = remote_user['email']
+                    email_to_remote_id[email] = remote_user['id']
+
+                    User.objects.update_or_create(
+                        email=email,
+                        defaults={
+                            'username': remote_user.get(
+                                'username',
+                                email.split('@')[0]
+                            ),
+                            'is_admin': remote_user.get('is_admin', False),
+                            'password': remote_user.get(
+                                'password', 'synced_from_supabase'
+                            )
+                        }
+                    )
+        except Exception as e:
+            logger.error(f"Failed to sync users from Supabase: {e}")
+
+    # 3. SEARCH + STATS
+    search_query = request.GET.get('q', '').strip()
+
+    users_qs = User.objects.all()
+
     if search_query:
-        filtered_users = [
-            u for u in users_data 
-            if search_query in (u.get('username') or '').lower() 
-            or search_query in (u.get('email') or '').lower()
-        ]
+        users_qs = users_qs.filter(
+            Q(username__icontains=search_query) |
+            Q(email__icontains=search_query)
+        )
 
-    # 4. CALCULATE STATS (From Supabase Data)
-    total_users = len(users_data)
-    total_admins = sum(1 for u in users_data if u.get('is_admin'))
-    total_regular = total_users - total_admins
+    users_qs = users_qs.order_by('-id')
+
+    # ---- compute daily allowance per user (using Supabase ID) ----
+    days_this_month = _days_in_current_month()
+
+    try:
+        from services.user_settings import get_monthly_allowance
+    except Exception:
+        def get_monthly_allowance(*args, **kwargs):
+            return None
+
+    from decimal import Decimal, ROUND_HALF_UP
+
+    for u in users_qs:
+        monthly = None
+        remote_id = email_to_remote_id.get(u.email)
+
+        if supabase and remote_id is not None:
+            try:
+                monthly = get_monthly_allowance(supabase, remote_id)
+            except Exception as e:
+                logger.error(f"Failed to get monthly allowance for Supabase user {remote_id}: {e}")
+
+        if monthly and monthly > 0:
+            daily = (monthly / Decimal(days_this_month)).quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            )
+        else:
+            daily = Decimal("500.00")
+
+        u.daily_allowance_value = daily
+
+    # stats for header cards (based on ALL users, not just filtered)
+    all_users = User.objects.all()
+    total_users = all_users.count()
+    total_admins = all_users.filter(is_admin=True).count()
+    total_regular = all_users.filter(is_admin=False).count()
 
     context = {
-        # Pass the Supabase list (dicts), not Django objects
-        'users': filtered_users, 
+        'users': users_qs,
         'user_count': total_users,
         'admin_count': total_admins,
         'regular_user_count': total_regular,
