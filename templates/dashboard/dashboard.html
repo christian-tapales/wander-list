@@ -1,7 +1,6 @@
 {% extends 'base.html' %}
-
+{% load static %}
 {% block title %}PisoHeroes | Home Dashboard{% endblock %}
-
 {% block content %}
 <main class="container-fluid flex-grow-1 dashboard-content"> 
     
@@ -198,8 +197,11 @@
                     <a href="{% url 'savings_goals:goals' %}" class="btn btn-outline-secondary btn-lg mb-2">
                         <i class="fas fa-piggy-bank me-2"></i> Add Savings Goal
                     </a>
-                    <a href="{% url 'budget_alerts:alerts_page' %}" class="btn btn-outline-info btn-lg">
+                    <a href="{% url 'budget_alerts:alerts_page' %}" class="btn btn-outline-info btn-lg mb-2">
                         <i class="fas fa-bell me-2"></i> Manage Budgets
+                    </a>
+                    <a href="{% static 'docs/guide.pdf' %}" class="btn btn-success btn-lg mb-2" download="Pisoheroes-User-Guide.pdf">
+                        <i class="fas fa-book-reader me-2"></i> Download Guide
                     </a>
                 </div>
             </div>
