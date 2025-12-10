@@ -224,6 +224,13 @@ def login_view(request):
                 print(f"DEBUG: Step 4 Success - Session set. Admin: {user.is_admin}")
                 messages.success(request, welcome_message)
 
+                log_login(
+                    str(remote_user_id),
+                    success=True,
+                    metadata={'email': email},
+                    request=request,
+                )
+
                 # ---------------------------------------------------------
                 # STEP 5: Redirect
                 # ---------------------------------------------------------
@@ -414,6 +421,13 @@ def oauth_callback(request):
         request.session['is_admin'] = is_admin
         request.session['supabase_access_token'] = access_token
         request.session['auth_method'] = 'google_oauth'
+
+        log_login(
+            str(remote_user_id),
+            success=True,
+            metadata={'email': email, 'auth_method': 'google_oauth'},
+            request=request,
+        )
 
         # Redirect Logic
         if is_admin:
