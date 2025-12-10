@@ -7,21 +7,6 @@
             <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                 {% if request.user_authenticated %}
                     {% if not request.session.is_admin %}
-                    <li class="nav-item">
-                        <a class="nav-link active" aria-current="page" href="#">Dashboard</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">Expenses</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">Goals</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">Reports</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">Settings</a>
-                    </li>
                     {% else %}
                         <li class="nav-item">
                             <span class="nav-link text-muted"><i class="fas fa-shield-alt"></i> Administrator Mode</span>
@@ -30,15 +15,7 @@
                 {% endif %}
             </ul>
 
-            {% if request.user_authenticated and not request.session.is_admin %}
-            <form class="d-flex me-3" role="search">
-                <input class="form-control me-2 flex-grow-1" type="search" placeholder="Search expenses or goals..." aria-label="Search">
-                
-                <button class="btn btn-outline-secondary d-none d-md-block" type="submit">
-                    <i class="fas fa-search"></i>
-                </button>
-            </form>
-            {% endif %}
+            
 
             <ul class="navbar-nav d-flex align-items-center">
                 {% if request.user_authenticated %}
@@ -69,9 +46,6 @@
                         </li>
                         
                         <li class="nav-item">
-                            <a class="nav-link" href="#"><i class="fas fa-cog"></i></a>
-                        </li>
-                        <li class="nav-item">
                             <div class="dark-mode-toggle nav-link">
                                 <label for="darkModeToggle">
                                     <i class="fas fa-moon"></i>
@@ -83,7 +57,6 @@
 
                     <li class="nav-item dropdown">
                         <a class="nav-link d-flex align-items-center" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <img src="https://via.placeholder.com/35" alt="User Profile" class="navbar-profile-img rounded-circle border">
                             <span class="d-none d-lg-block ms-2 fw-bold">{{ request.username }}</span>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
@@ -91,8 +64,6 @@
                                 <li><span class="dropdown-header">Admin Account</span></li>
                                 <li><a class="dropdown-item" href="{% url 'login:logout' %}"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
                             {% else %}
-                                <li><a class="dropdown-item" href="#">Profile</a></li>
-                                <li><a class="dropdown-item" href="#">Settings</a></li>
                                 <li><a class="dropdown-item" href="{% url 'audit_logs:audit_logs' %}"><i class="fas fa-clipboard-list"></i> Audit Logs</a></li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item" href="{% url 'login:logout' %}">Logout</a></li>
