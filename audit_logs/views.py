@@ -22,6 +22,13 @@ FEATURE_LABELS = {
 }
 
 
+def _build_choice_maps():
+    """Build maps for action and resource labels from model choices."""
+    action_map = {code: label for code, label in getattr(AuditLog, "ACTION_TYPES", [])}
+    resource_map = {code: label for code, label in getattr(AuditLog, "RESOURCE_TYPES", [])}
+    return action_map, resource_map
+
+
 # =========================
 # USER AUDIT LOG (existing)
 # =========================
@@ -88,6 +95,9 @@ def audit_logs_view(request):
         "failed_login_count": failed_login_count,
         "action_types": AuditLog.ACTION_TYPES,
         "resource_types": AuditLog.RESOURCE_TYPES,
+        # Friendly maps for templates / JS
+        "action_labels_map": _build_choice_maps()[0],
+        "resource_labels_map": _build_choice_maps()[1],
         "selected_action": action_type,
         "selected_resource": resource_type,
         "selected_days": days,
@@ -186,7 +196,8 @@ def admin_usage_analytics_view(request):
 
     # Base queryset: ALL logs in date range (all users)
     logs = AuditLog.objects.filter(
-        timestamp__gte=start_date, timestamp__lte=end_date
+        timestamp__gte=start_date,
+        timestamp__lte=end_date,
     )
 
     # Apply optional filters
@@ -196,35 +207,28 @@ def admin_usage_analytics_view(request):
     if resource_type:
         logs = logs.filter(resource_type=resource_type)
 
-    # ====== Overview metrics (use ALL logs) ======
+    # ====== Overview metrics ======
     total_actions = logs.count()
     login_count = logs.filter(action_type="LOGIN").count()
     created_count = logs.filter(action_type="CREATE").count()
     updated_count = logs.filter(action_type="UPDATE").count()
+    delete_count = logs.filter(action_type="DELETE").count()
 
     # ====== Most used features (exclude auth noise) ======
-    feature_logs = logs.exclude(
-        action_type__in=["LOGIN", "LOGOUT", "LOGIN_FAILED"]
-    ).exclude(resource_type="user")
+    feature_logs = (
+        logs
+        .exclude(action_type__in=["LOGIN", "LOGOUT", "LOGIN_FAILED"])
+        # optional: hide raw "user" resource so it focuses on app features
+        .exclude(resource_type="user")
+    )
 
-    # Group by resource_type and count
     top_features_qs = (
         feature_logs.values("resource_type")
         .annotate(count=Count("id"))
         .order_by("-count")[:5]
     )
 
-    # Nice labels for the resource types
-    FEATURE_LABELS = {
-        "expense": "Expenses",
-        "goal": "Savings Goals",
-        "alert": "Budget Alerts",
-        "reminder": "Reminders",
-        "monthly_allowance": "Monthly Allowance",
-        "system": "System",
-        "user": "Profile / Account",
-    }
-
+    # Use the global FEATURE_LABELS at top of file
     top_features = [
         {
             "name": FEATURE_LABELS.get(row["resource_type"], row["resource_type"]),
@@ -234,7 +238,7 @@ def admin_usage_analytics_view(request):
         for row in top_features_qs
     ]
 
-    # ====== Recent activity (still ALL logs with filters) ======
+    # ====== Recent activity table ======
     recent_logs = logs.order_by("-timestamp")[:100]
 
     context = {
@@ -243,8 +247,7 @@ def admin_usage_analytics_view(request):
         "login_count": login_count,
         "create_count": created_count,
         "update_count": updated_count,
-        # we’re not tracking delete explicitly in cards now, only if you want:
-        "delete_count": logs.filter(action_type="DELETE").count(),
+        "delete_count": delete_count,
 
         "top_features": top_features,
 
@@ -313,3 +316,68 @@ def admin_usage_export_csv(request):
 
     return response
 
+
+@require_authentication
+def audit_logs_api(request):
+    """
+    JSON API endpoint to return filtered audit logs for the current user (or all users for admins).
+    Accepts the same query params as `audit_logs_view`: `action_type`, `resource_type`, `days`, `search`.
+    Returns a JSON list of recent logs with friendly labels to power front-end filter buttons.
+    """
+    # Allow admins to see all users, regular users only their own
+    is_admin = bool(request.session.get("is_admin"))
+    user_id = request.session.get("user_id")
+
+    action_type = request.GET.get("action_type", "")
+    resource_type = request.GET.get("resource_type", "")
+    days_str = request.GET.get("days", "30")
+    search = request.GET.get("search", "")
+
+    try:
+        days = int(days_str)
+    except (TypeError, ValueError):
+        days = 30
+
+    end_date = datetime.now()
+    start_date = end_date - timedelta(days=days) if days else None
+
+    # Base queryset
+    if is_admin:
+        qs = AuditLog.objects.all()
+    else:
+        qs = AuditLog.objects.filter(user_id=user_id)
+
+    if start_date:
+        qs = qs.filter(timestamp__gte=start_date, timestamp__lte=end_date)
+
+    if action_type:
+        qs = qs.filter(action_type=action_type)
+
+    if resource_type:
+        qs = qs.filter(resource_type=resource_type)
+
+    if search:
+        qs = qs.filter(Q(resource_id__icontains=search) | Q(ip_address__icontains=search))
+
+    # Build maps
+    action_map, resource_map = _build_choice_maps()
+
+    results = []
+    for log in qs.order_by("-timestamp")[:200]:
+        results.append(
+            {
+                "id": log.id,
+                "timestamp": log.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+                "user_id": log.user_id,
+                "action_type": log.action_type,
+                "action_label": action_map.get(log.action_type, log.action_type),
+                "resource_type": log.resource_type,
+                "resource_label": resource_map.get(log.resource_type, log.resource_type),
+                "resource_id": log.resource_id,
+                "ip_address": log.ip_address,
+                "user_agent": (log.user_agent or "")[:500],
+                "metadata": log.metadata or {},
+            }
+        )
+
+    return JsonResponse({"count": len(results), "results": results})

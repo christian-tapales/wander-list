@@ -137,6 +137,7 @@ class BudgetAlertForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user', None)
+        self.alert_id = kwargs.pop('alert_id', None)
         self.instance = kwargs.pop('instance', None)
         super().__init__(*args, **kwargs)
         
