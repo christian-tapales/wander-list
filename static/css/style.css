@@ -389,6 +389,7 @@ body {
     border-top: 1px solid var(--border-color);
     margin-top: auto;
     width: 100%;
+    text-align: center;
     margin-left: 0;
 }
 
