@@ -69,22 +69,6 @@ def register(request):
                     logger.info(f"Created new Supabase User with ID: {remote_id}")
 
                 # ---------------------------------------------------------
-                # STEP 3: Create Local User (Slave to Supabase ID)
-                # ---------------------------------------------------------
-                # We force the local DB to use the ID Supabase just gave us.
-                user, created = User.objects.update_or_create(
-                    id=remote_id,
-                    defaults={
-                        'username': username,
-                        'email': email,
-                        'password': password, # Store hashed in real app, or dummy if relying on Supabase
-                    }
-                )
-                if created:
-                    user.set_password(password)
-                    user.save()
-
-                # ---------------------------------------------------------
                 # STEP 4: Success
                 # ---------------------------------------------------------
                 messages.success(request, "🎉 Account created successfully! Please log in.")
